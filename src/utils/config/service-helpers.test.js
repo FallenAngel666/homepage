@@ -4,6 +4,7 @@ const { state, fs, yaml, config, Docker, dockerCfg, kubeCfg, kubeApi } = vi.hois
   const state = {
     servicesYaml: null,
     dockerYaml: null,
+    kubernetesYaml: null,
     dockerContainers: [],
     dockerContainersByServer: {},
     dockerServicesByServer: {},
@@ -21,6 +22,7 @@ const { state, fs, yaml, config, Docker, dockerCfg, kubeCfg, kubeApi } = vi.hois
     readFile: vi.fn(async (filePath) => {
       if (String(filePath).endsWith("/services.yaml")) return "services";
       if (String(filePath).endsWith("/docker.yaml")) return "docker";
+      if (String(filePath).endsWith("/kubernetes.yaml")) return "kubernetes";
       return "";
     }),
   };
@@ -29,6 +31,7 @@ const { state, fs, yaml, config, Docker, dockerCfg, kubeCfg, kubeApi } = vi.hois
     load: vi.fn((contents) => {
       if (contents === "services") return state.servicesYaml;
       if (contents === "docker") return state.dockerYaml;
+      if (contents === "kubernetes") return state.kubernetesYaml;
       return null;
     }),
   };
@@ -89,6 +92,7 @@ describe("utils/config/service-helpers", () => {
     vi.clearAllMocks();
     state.servicesYaml = null;
     state.dockerYaml = null;
+    state.kubernetesYaml = null;
     state.dockerContainers = [];
     state.dockerContainersByServer = {};
     state.dockerServicesByServer = {};
@@ -423,6 +427,7 @@ describe("utils/config/service-helpers", () => {
     state.servicesYaml = [{ G: [{ Other: { icon: "nope" } }] }];
     state.dockerYaml = { "docker-local": {} };
     state.dockerContainers = [];
+    state.kubernetesYaml = { mode: "default" };
     state.kubeConfig = {}; // truthy => proceed
     state.kubeServices = [{ name: "S", group: "G", type: "service" }];
     kubeApi.listIngress.mockResolvedValueOnce([{}]);
@@ -574,6 +579,7 @@ describe("utils/config/service-helpers", () => {
 
   it("servicesFromKubernetes maps discoverable resources into service groups", async () => {
     config.getSettings.mockReturnValue({ instanceName: "foo" });
+    state.kubernetesYaml = { mode: "default" };
     state.kubeConfig = {}; // truthy
     kubeApi.listIngress.mockResolvedValueOnce([{ kind: "Ingress" }]);
     kubeApi.isDiscoverable.mockReturnValueOnce(true);
@@ -592,6 +598,7 @@ describe("utils/config/service-helpers", () => {
   });
 
   it("servicesFromKubernetes logs and rethrows unexpected errors", async () => {
+    state.kubernetesYaml = { mode: "default" };
     state.kubeConfig = {}; // truthy
     kubeApi.listIngress.mockRejectedValueOnce(new Error("boom"));
 

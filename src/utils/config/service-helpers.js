@@ -1,14 +1,11 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-import Docker from "dockerode";
 import yaml from "js-yaml";
 
 import checkAndCopyConfig, { CONF_DIR, getSettings, substituteEnvironmentVars } from "utils/config/config";
 import getDockerArguments from "utils/config/docker";
-import { getKubeConfig } from "utils/config/kubernetes";
 import * as shvl from "utils/config/shvl";
-import kubernetes from "utils/kubernetes/export";
 import createLogger from "utils/logger";
 
 const logger = createLogger("service-helpers");
@@ -70,6 +67,8 @@ export async function servicesFromDocker() {
   if (!servers) {
     return [];
   }
+
+  const { default: Docker } = await import("dockerode");
 
   const { instanceName } = getSettings();
 
@@ -172,6 +171,19 @@ export async function servicesFromKubernetes() {
   const { instanceName } = getSettings();
 
   checkAndCopyConfig("kubernetes.yaml");
+
+  const k8sConfigFile = path.join(CONF_DIR, "kubernetes.yaml");
+  const k8sRawConfigData = await fs.readFile(k8sConfigFile, "utf8");
+  const k8sConfigData = substituteEnvironmentVars(k8sRawConfigData);
+  const k8sConfig = yaml.load(k8sConfigData);
+  if (!k8sConfig?.mode || k8sConfig.mode === "disabled") {
+    return [];
+  }
+
+  const [{ getKubeConfig }, { default: kubernetes }] = await Promise.all([
+    import("utils/config/kubernetes"),
+    import("utils/kubernetes/export"),
+  ]);
 
   try {
     const kc = getKubeConfig();
