@@ -1,13 +1,20 @@
-import { CoreV1Api, Metrics } from "@kubernetes/client-node";
-
-import { getKubeConfig } from "../../../utils/config/kubernetes";
 import { parseCpu, parseMemory } from "../../../utils/kubernetes/utils";
 import createLogger from "../../../utils/logger";
 
 const logger = createLogger("widget");
+let kubeDepsPromise;
+
+async function getKubernetesDeps() {
+  if (!kubeDepsPromise) {
+    kubeDepsPromise = Promise.all([import("@kubernetes/client-node"), import("../../../utils/config/kubernetes")]);
+  }
+
+  return kubeDepsPromise;
+}
 
 export default async function handler(req, res) {
   try {
+    const [{ CoreV1Api, Metrics }, { getKubeConfig }] = await getKubernetesDeps();
     const kc = getKubeConfig();
     if (!kc) {
       return res.status(500).send({

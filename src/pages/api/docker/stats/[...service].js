@@ -1,9 +1,16 @@
-import Docker from "dockerode";
-
 import getDockerArguments from "utils/config/docker";
 import createLogger from "utils/logger";
 
 const logger = createLogger("dockerStatsService");
+let DockerPromise;
+
+async function getDocker() {
+  if (!DockerPromise) {
+    DockerPromise = import("dockerode");
+  }
+  const { default: Docker } = await DockerPromise;
+  return Docker;
+}
 
 export default async function handler(req, res) {
   const { service } = req.query;
@@ -16,6 +23,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const Docker = await getDocker();
     const dockerArgs = getDockerArguments(containerServer);
     const docker = new Docker(dockerArgs.conn);
     const containers = await docker.listContainers({
